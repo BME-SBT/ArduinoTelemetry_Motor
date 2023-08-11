@@ -3,12 +3,12 @@
 #include <stdint.h>
 
 template <typename T>
-inline void to_be_bytes(T datatype, u8 *out)
+inline void to_be_bytes(T datatype, uint8_t *out)
 {
 
     size_t byte_count = sizeof(T);
 
-    // we cannot use reinterpret_cast<u8*>... as that depends on the platform
+    // we cannot use reinterpret_cast<uint8_t*>... as that depends on the platform
 
     // endianness
 
@@ -19,24 +19,24 @@ inline void to_be_bytes(T datatype, u8 *out)
 
         T mask = (0xff << (byte_n * 8));
 
-        u8 byte = (datatype & mask) >> (byte_n * 8);
+        uint8_t byte = (datatype & mask) >> (byte_n * 8);
 
         out[byte_count - byte_n - 1] = byte;
     }
 }
 
 template <typename T>
-inline T from_be_bytes(const u8 *bytes)
+inline T from_be_bytes(const uint8_t *bytes)
 {
 
     auto byte_count = sizeof(T);
 
     T value = 0;
 
-    for (u32 byte_n = 0; byte_n < byte_count; byte_n++)
+    for (uint32_t byte_n = 0; byte_n < byte_count; byte_n++)
     {
 
-        u8 byte = bytes[byte_n];
+        uint8_t byte = bytes[byte_n];
 
         auto offset = byte_count - byte_n - 1;
 
