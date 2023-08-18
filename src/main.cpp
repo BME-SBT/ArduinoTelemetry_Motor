@@ -26,6 +26,7 @@ void dump_bytes(uint8_t *ptr, size_t size)
     }
     Serial.println();
 }
+
 void setup()
 {
     // USB debugging
@@ -44,60 +45,44 @@ void setup()
 
     // Motor UART init
     motor_serial.begin(19200);
+    motor_serial.setTimeout(50);
     pinMode(PIN7, INPUT);
 }
 
-float motor_voltage = 0.0f;
 bool success = false;
 static uint8_t motor_data_raw[47];
+
 void read_motor_data()
 {
+    // Clear buffer
+    while (motor_serial.available())
+    {
+        motor_serial.read();
+    }
+    
     memset(motor_data_raw, 0, 45);
     motor_serial.write(0x80);
     motor_serial.write(0x8d);
     delay(5);
-    // motor_serial.setTimeout(50);
     motor_serial.readBytes(motor_data_raw, 45);
     // dump_bytes(motor_data_raw, 45);
 
-    if (motor_data_raw[0] == 0x7c && motor_data_raw[1] == 0x8d)
+    if (motor_data_raw[0] == 0x7c && motor_data_raw[1] == 0x8d && motor_data_raw[43] == 0x7d)
     {
-        if (motor_data_raw[43] == 0x7d)
-        {
-            success = true;
-            int controller_temp = motor_data_raw[16] - 20;
-            int motor_temp = motor_data_raw[17] - 20;
-            int rpm = ((motor_data_raw[22] << 8) | motor_data_raw[21]) * 10;
-            float current = ((motor_data_raw[29] << 8) | motor_data_raw[28]) / 10.0;
-            motor_voltage = ((motor_data_raw[31] << 8) | motor_data_raw[30]) / 10.0;
-            float power = current * motor_voltage;
+        // Packet seems valid
+        success = true;
+        uint16_t controller_temp = motor_data_raw[16] - 20;
+        uint16_t motor_temp = motor_data_raw[17] - 20;
+        uint16_t motor_rpm = (((uint16_t)motor_data_raw[22] << 8) | motor_data_raw[21]) * 10;
+        float motor_current = (((uint16_t)motor_data_raw[29] << 8) | motor_data_raw[28]) / 10.0;
+        float motor_voltage = (((uint16_t)motor_data_raw[31] << 8) | motor_data_raw[30]) / 10.0;
+        int32_t motor_power_mW = motor_current * motor_voltage * 1000;
 
-            s_motor_rpm.set_value((uint16_t)(rpm));
-            s_motor_current.set_value((uint16_t)(floor(current * 10)));
-            s_motor_temp.set_value((uint16_t)(floor(motor_temp * 10)));
-            s_motor_controller_temp.set_value((uint16_t)(floor(controller_temp * 10)));
-            s_motor_power.set_value((int32_t)(floor(power * 1000)));
-
-            int controller_tmp = motor_data_raw[16] - 20;
-            int motor_tmp = motor_data_raw[17] - 20;
-            int motor_rpm = ((motor_data_raw[22] << 8) | motor_data_raw[21]) * 10;
-            int motor_current = (float)((motor_data_raw[29] << 8) | motor_data_raw[28]);
-            int motor_voltage = (float)((motor_data_raw[31] << 8) | motor_data_raw[30]);
-            int motor_power = (motor_current / 10.0) * (motor_voltage / 10.0);
-
-            static char json_buffer[256] = {0};
-            snprintf(json_buffer, 256, "{\"success\": true, \"controller_temp\": %d, \"motor_temp\": %d, \"motor_rpm\": %d, \"motor_current\": %d, \"motor_voltage\": %d, \"motor_power\": %d}", controller_tmp, motor_tmp, motor_rpm, motor_current, motor_voltage, motor_power);
-            Serial.println(json_buffer);
-        }
-        else
-        {
-            s_motor_rpm.disable();
-            s_motor_current.disable();
-            s_motor_temp.disable();
-            s_motor_controller_temp.disable();
-            s_motor_power.disable();
-            success = false;
-        }
+        s_motor_rpm.set_value(motor_rpm);
+        s_motor_current.set_value((uint16_t)(floor(motor_current * 10)));
+        s_motor_temp.set_value(motor_temp * 10);
+        s_motor_controller_temp.set_value(controller_temp * 10);
+        s_motor_power.set_value(motor_power_mW);
     }
     else
     {
@@ -113,7 +98,7 @@ void read_motor_data()
 int8_t throttle_pos = 0;
 void read_throttle()
 {
-    unsigned long pulse = pulseIn(PIN7, HIGH, 100000UL);
+    unsigned long pulse = pulseIn(PIN7, HIGH, 40000UL); // 40ms timeout, pulses should come every 20ms
     if (pulse != 0)
     {
         int percent = map(pulse, 1280, 1830, -100, 100);
