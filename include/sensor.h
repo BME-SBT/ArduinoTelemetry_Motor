@@ -52,9 +52,9 @@ template <typename T>
 class Sensor
 {
 public:
-    Sensor(uint16_t id, uint64_t frequency, MCP2515Class &can) : id(id), freq(frequency), can(can)
+    Sensor(uint16_t id, uint64_t frequency, MCP2515Class &can) : id(id), freq(frequency), can(can), last_send_millis(0)
     {
-        send_micros = 1000000 / freq;
+        send_millis = 1000 / freq;
     }
 
     void set_value(uint8_t *data)
@@ -83,8 +83,8 @@ public:
     {
         if (disabled)
             return;
-        uint64_t now = micros();
-        if (now - last_send_micros > send_micros)
+        uint64_t now = millis();
+        if (now - last_send_millis > send_millis)
         {
             can.beginPacket(id);
             can.write(buffer, sizeof(T));
@@ -97,7 +97,7 @@ public:
             else
             {
 
-                last_send_micros = now;
+                last_send_millis = now;
                 Serial.print(id, HEX);
                 Serial.print(" ");
                 Serial.print(sizeof(T));
@@ -111,8 +111,8 @@ private:
     uint16_t id;
     uint64_t freq;
     uint8_t buffer[sizeof(T)];
-    uint64_t send_micros;
-    uint64_t last_send_micros;
+    uint64_t send_millis;
+    uint64_t last_send_millis;
     bool disabled = false;
     MCP2515Class &can;
 };
