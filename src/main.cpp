@@ -11,7 +11,6 @@ Sensor<uint16_t> s_motor_current(0b01111110010, 10, CAN);
 Sensor<uint16_t> s_motor_temp(0b00010110010, 10, CAN);
 Sensor<uint16_t> s_motor_controller_temp(0b00011010010, 10, CAN);
 Sensor<int32_t> s_motor_power(0b10000110010, 10, CAN);
-Sensor<int8_t> s_throttle_position(0b00000010101, 10, CAN);
 
 void dump_bytes(uint8_t *ptr, size_t size)
 {
@@ -46,7 +45,6 @@ void setup()
     // Motor UART init
     motor_serial.begin(19200);
     motor_serial.setTimeout(50);
-    pinMode(PIN7, INPUT);
 }
 
 bool success = false;
@@ -95,37 +93,15 @@ void read_motor_data()
     }
 }
 
-int8_t throttle_pos = 0;
-void read_throttle()
-{
-    unsigned long pulse = pulseIn(PIN7, HIGH, 40000UL); // 40ms timeout, pulses should come every 20ms
-    if (pulse != 0)
-    {
-        int percent = map(pulse, 1280, 1830, -100, 100);
-        throttle_pos = percent < -100 ? -100 : (percent > 100 ? 100 : percent);
-        s_throttle_position.set_value(throttle_pos);
-    }
-    else
-    {
-        throttle_pos = 0;
-        s_throttle_position.disable();
-    }
-}
-
 void loop()
 {
     Serial.println("loop");
     read_motor_data();
-    read_throttle();
     s_motor_rpm.send();
     s_motor_current.send();
     s_motor_temp.send();
     s_motor_controller_temp.send();
     s_motor_power.send();
-    s_throttle_position.send();
-
-    Serial.print((int)throttle_pos);
-    Serial.println();
 
     CAN.clearWriteError();
     delay(1);
