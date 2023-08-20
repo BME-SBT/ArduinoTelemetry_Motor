@@ -11,6 +11,7 @@ Sensor<uint16_t> s_motor_current(0b01111110010, 10, CAN);
 Sensor<uint16_t> s_motor_temp(0b00010110010, 10, CAN);
 Sensor<uint16_t> s_motor_controller_temp(0b00011010010, 10, CAN);
 Sensor<int32_t> s_motor_power(0b10000110010, 10, CAN);
+Sensor<uint8_t> s_motor_heartbeat(0b11100110010, 1, CAN);
 
 void dump_bytes(uint8_t *ptr, size_t size)
 {
@@ -81,6 +82,7 @@ void read_motor_data()
         s_motor_temp.set_value(motor_temp * 10);
         s_motor_controller_temp.set_value(controller_temp * 10);
         s_motor_power.set_value(motor_power_mW);
+        s_motor_heartbeat.set_value((char)1);
     }
     else
     {
@@ -89,6 +91,7 @@ void read_motor_data()
         s_motor_temp.disable();
         s_motor_controller_temp.disable();
         s_motor_power.disable();
+        s_motor_heartbeat.set_value((char)0);
         success = false;
     }
 }
@@ -102,6 +105,9 @@ void loop()
     s_motor_temp.send();
     s_motor_controller_temp.send();
     s_motor_power.send();
+
+    CAN.clearWriteError();
+    s_motor_heartbeat.send();
 
     CAN.clearWriteError();
     delay(1);
